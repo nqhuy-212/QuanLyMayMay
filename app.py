@@ -44,7 +44,7 @@ def get_data(DB,query):
     df = pd.read_sql(query,conn)
     conn.close()
     return df
-def run_exec_sql(from_date,to_date):
+def run_exec_sql(from_date,to_date,buffer):
     conn = pyodbc.connect(
     'DRIVER={SQL Server};'
     f'SERVER={os.getenv("SERVER")};'
@@ -52,7 +52,7 @@ def run_exec_sql(from_date,to_date):
     f'UID={os.getenv("UID")};'
     f'PWD={os.getenv("PASSWORD")}'
     )
-    query = f"EXEC QUAN_LY_MAY_MAY '{from_date}','{to_date}'"
+    query = f"EXEC QUAN_LY_MAY_MAY '{from_date}','{to_date}','{buffer}'"
     cursor = conn.cursor()
     cursor.execute(query)
     cursor.commit()
@@ -62,7 +62,7 @@ def run_exec_sql(from_date,to_date):
 df = get_data('DW','SELECT * FROM CAN_DOI_MAY_MAY WHERE LOAI_MAY IS NOT NULL')
 df['NGAY'] = pd.to_datetime(df['NGAY'], format = '%Y-%m-%d')
 
-cols = st.columns((1,1,1,1))
+cols = st.columns((2,2,2,1,1))
 with cols[0]:
     min_date = pd.to_datetime(df['NGAY'].min())
     from_date = pd.to_datetime(st.date_input("Từ ngày:",value=min_date.date()))
@@ -73,9 +73,11 @@ with cols[2]:
     trang_thai = st.selectbox("Tình trạng máy:",options=['OK','Hỏng'],index=0)
 df = df[(df['NGAY']>= from_date) & (df['NGAY']<= to_date)]
 with cols[3]:
+    buffer = st.slider(label="Chọn khoảng buffer",min_value=0.0,max_value=1.0,value=0.1)
+with cols[4]:
     st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
     if st.button("Tải lại dữ liệu",use_container_width=True):
-        run_exec_sql(from_date.strftime("%Y-%m-%d"),to_date.strftime("%Y-%m-%d"))
+        run_exec_sql(from_date.strftime("%Y-%m-%d"),to_date.strftime("%Y-%m-%d"),buffer)
         df = get_data('DW','SELECT * FROM CAN_DOI_MAY_MAY WHERE LOAI_MAY IS NOT NULL')
         df['NGAY'] = pd.to_datetime(df['NGAY'], format = '%Y-%m-%d')
         st.rerun()
