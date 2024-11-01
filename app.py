@@ -62,7 +62,7 @@ def run_exec_sql(from_date,to_date,buffer):
 df = get_data('DW','SELECT * FROM CAN_DOI_MAY_MAY WHERE LOAI_MAY IS NOT NULL')
 df['NGAY'] = pd.to_datetime(df['NGAY'], format = '%Y-%m-%d')
 
-cols = st.columns((2,2,2,1,1))
+cols = st.columns((1,1,1,1))
 with cols[0]:
     min_date = pd.to_datetime(df['NGAY'].min())
     from_date = pd.to_datetime(st.date_input("Từ ngày:",value=min_date.date()))
@@ -73,15 +73,15 @@ with cols[2]:
     trang_thai = st.selectbox("Tình trạng máy:",options=['OK','Hỏng'],index=0)
 df = df[(df['NGAY']>= from_date) & (df['NGAY']<= to_date)]
 with cols[3]:
-    buffer = st.slider(label="Chọn khoảng buffer",min_value=0.0,max_value=1.0,value=0.1)
-with cols[4]:
-    st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
-    if st.button("Tải lại dữ liệu",use_container_width=True):
-        run_exec_sql(from_date.strftime("%Y-%m-%d"),to_date.strftime("%Y-%m-%d"),buffer)
-        df = get_data('DW','SELECT * FROM CAN_DOI_MAY_MAY WHERE LOAI_MAY IS NOT NULL')
-        df['NGAY'] = pd.to_datetime(df['NGAY'], format = '%Y-%m-%d')
-        st.rerun()
-        st.success("Tải thành công dữ liệu mới!")
+    with st.form(key='recalculate'):    
+        buffer = st.slider(label="Chọn khoảng buffer",min_value=0.0,max_value=1.0,value=0.1)
+        st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
+        if st.form_submit_button("Tải lại dữ liệu",use_container_width=True):
+            run_exec_sql(from_date.strftime("%Y-%m-%d"),to_date.strftime("%Y-%m-%d"),buffer)
+            df = get_data('DW','SELECT * FROM CAN_DOI_MAY_MAY WHERE LOAI_MAY IS NOT NULL')
+            df['NGAY'] = pd.to_datetime(df['NGAY'], format = '%Y-%m-%d')
+            st.rerun()
+            st.success("Tải thành công dữ liệu mới!")
 
 df['NGAY'] = df['NGAY'].dt.date
 df1 = df[df['NHA_MAY'] == "NT1"]
@@ -364,7 +364,7 @@ def bar_chart_may_ton(nha_may,trang_thai):
         range=[0, max_y]
     )
     st.plotly_chart(fig,use_container_width=True)  
-def pie_chart(nha_may):
+def pie_chart(nha_may,unique_key):
     df_may_ton = get_data('DW',f"SELECT * FROM MAYTON WHERE NGAY = CAST(GETDATE() AS DATE) and Nha_may = '{nha_may}'")
     fig = px.pie(df_may_ton,names='Trang_thai',values='So_luong',title="Tình trạng máy trong ngày")
     fig.update_traces(
@@ -372,14 +372,14 @@ def pie_chart(nha_may):
         textfont = dict(color = 'rgb(0,0,0)',size = 12),
         textinfo = 'label+percent'
     )
-    st.plotly_chart(fig)
+    st.plotly_chart(fig,use_container_width=True,key = unique_key)
 cols = st.columns(2)
 with cols[0]:
     bar_chart_may_ton("NT1",trang_thai)
-    pie_chart(nha_may="NT1")
+    pie_chart(nha_may="NT1",unique_key= 'pie_chart1')
 with cols[1]:
     bar_chart_may_ton("NT2",trang_thai)
-    pie_chart(nha_may="NT2")
+    pie_chart(nha_may="NT2",unique_key= 'pie_chart2')
 #CHỌN LOẠI MÁY ĐỂ PHÂN TÍCH
 ds_may = pd.Series(df3_2['Loai_may'].unique()).sort_values(ascending=False)
 ds_may_selected = st.multiselect("Chọn loại máy:",options=ds_may,default=['SN','OL','FL (hemming)'])
