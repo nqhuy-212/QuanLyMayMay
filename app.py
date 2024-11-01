@@ -62,18 +62,18 @@ def run_exec_sql(from_date,to_date,buffer):
 df = get_data('DW','SELECT * FROM CAN_DOI_MAY_MAY WHERE LOAI_MAY IS NOT NULL')
 df['NGAY'] = pd.to_datetime(df['NGAY'], format = '%Y-%m-%d')
 
-cols = st.columns((1,1,1,1))
-with cols[0]:
-    min_date = pd.to_datetime(df['NGAY'].min())
-    from_date = pd.to_datetime(st.date_input("Từ ngày:",value=min_date.date()))
-with cols[1]:
-    max_date = pd.to_datetime(df['NGAY'].max())
-    to_date = pd.to_datetime(st.date_input("Đến ngày:",value=max_date.date()))
-with cols[2]:
-    trang_thai = st.selectbox("Tình trạng máy:",options=['OK','Hỏng'],index=0)
-df = df[(df['NGAY']>= from_date) & (df['NGAY']<= to_date)]
-with cols[3]:
-    with st.form(key='recalculate'):    
+with st.form(key='recalculate'):   
+    cols = st.columns((1,1,0.2,1))
+    with cols[0]:
+        min_date = pd.to_datetime(df['NGAY'].min())
+        from_date = pd.to_datetime(st.date_input("Từ ngày:",value=min_date.date()))
+    with cols[1]:
+        max_date = pd.to_datetime(df['NGAY'].max())
+        to_date = pd.to_datetime(st.date_input("Đến ngày:",value=max_date.date()))
+    with cols[2]:
+        trang_thai = st.selectbox("Tình trạng máy:",options=['OK','Hỏng'],index=0)
+    df = df[(df['NGAY']>= from_date) & (df['NGAY']<= to_date)]
+    with cols[3]:
         buffer = st.slider(label="Chọn khoảng buffer",min_value=0.0,max_value=1.0,value=0.1)
         st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
         if st.form_submit_button("Tải lại dữ liệu",use_container_width=True):
