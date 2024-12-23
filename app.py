@@ -376,7 +376,12 @@ def bar_chart_may_ton(nha_may,trang_thai):
 def pie_chart(nha_may,unique_key,trang_thai):
     df_may_ton = get_data('DW',f"SELECT * FROM MAYTON WHERE NGAY = CAST(GETDATE() AS DATE) and Nha_may = '{nha_may}'")
     df_may_ton = df_may_ton[df_may_ton['Trang_thai'].isin(trang_thai)]
-    fig = px.pie(df_may_ton,names='Trang_thai',values='So_luong',title="Tình trạng máy trong ngày")
+    fig = px.pie(
+        df_may_ton,
+        names='Trang_thai',
+        values='So_luong',
+        category_orders={'Trang_thai': ['Tồn', 'Mượn', 'Thuê', 'Cho mượn', 'Thanh lý']},
+        title="Tình trạng máy trong ngày")
     fig.update_traces(
         textposition = 'outside',
         textfont = dict(color = 'rgb(0,0,0)',size = 12),
