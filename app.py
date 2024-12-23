@@ -63,7 +63,7 @@ df = get_data('DW','SELECT * FROM CAN_DOI_MAY_MAY WHERE LOAI_MAY IS NOT NULL')
 df['NGAY'] = pd.to_datetime(df['NGAY'], format = '%Y-%m-%d')
 
 with st.form(key='recalculate'):   
-    cols = st.columns((1,1,0.2,1))
+    cols = st.columns((1,1,1,1))
     with cols[0]:
         min_date = pd.to_datetime(df['NGAY'].min())
         from_date = pd.to_datetime(st.date_input("Từ ngày:",value=min_date.date()))
@@ -71,7 +71,8 @@ with st.form(key='recalculate'):
         max_date = pd.to_datetime(df['NGAY'].max())
         to_date = pd.to_datetime(st.date_input("Đến ngày:",value=max_date.date()))
     with cols[2]:
-        trang_thai = st.selectbox("Tình trạng máy:",options=['OK','Hỏng'],index=0)
+        options=['Tồn','Mượn','Thuê','Cho mượn','Thanh lý']
+        trang_thai = st.multiselect("Tình trạng máy:",options=['Tồn','Mượn','Thuê','Cho mượn','Thanh lý'],default=['Tồn','Mượn','Thuê'])
     df = df[(df['NGAY']>= from_date) & (df['NGAY']<= to_date)]
     with cols[3]:
         buffer = st.slider(label="Chọn khoảng buffer",min_value=0.0,max_value=1.0,value=0.1)
@@ -86,6 +87,7 @@ with st.form(key='recalculate'):
 df['NGAY'] = df['NGAY'].dt.date
 df1 = df[df['NHA_MAY'] == "NT1"]
 df2 = df[df['NHA_MAY'] == "NT2"]
+
 
 df1_1 = df1.melt(id_vars=['NGAY','Loai_may'],value_vars=['MAY_CAN','MAY_TON'] )
 df2_1 = df2.melt(id_vars=['NGAY','Loai_may'],value_vars=['MAY_CAN','MAY_TON'] )
@@ -106,8 +108,8 @@ df4_3['Cân bằng'] = df4_3.apply(lambda x:
 )
 df4_3 = df4_3[['NGAY','Loai_may','Cân bằng']].sort_values('NGAY')
 # FORMATING
-df1_2['value_formated'] = df1_2['value'].apply(lambda x: f"{x:,.0f}")
-df2_2['value_formated'] = df2_2['value'].apply(lambda x: f"{x:,.0f}")
+df1_2['value_formated'] = df1_2['value'].apply(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
+df2_2['value_formated'] = df2_2['value'].apply(lambda x: f"{x:,.0f}" if pd.notnull(x) else "")
 df3_2['thua_thieu_formated'] = df3_2['THUA_THIEU'].apply(lambda x: f"{x:,.0f}")
 df4_3['Cân bằng formated'] = df4_3['Cân bằng'].apply(lambda x: f"{x:,.0f}")
 df1_2 = df1_2.replace({'variable' : {'MAY_CAN' : 'Máy cần','MAY_TON' : 'Máy đang có'}})
@@ -262,8 +264,6 @@ def can_bang_may_fill():
 
     # Hiển thị biểu đồ trong Streamlit
     st.plotly_chart(fig1, use_container_width=True)
-
-    
       
 #HÀM ĐỂ VẼ CHI TIẾT THEO TỪNG LOẠI MÁY
 def detail_chart(loai_may):
@@ -342,11 +342,20 @@ def detail_chart(loai_may):
     st.plotly_chart(fig4,use_container_width= True)
     
 def bar_chart_may_ton(nha_may,trang_thai):
-    df_may_ton = get_data('DW',f"SELECT * FROM MAYTON WHERE NGAY = CAST(GETDATE() AS DATE) and Nha_may = '{nha_may}' and trang_thai = N'{trang_thai}'")
+    df_may_ton = get_data('DW',f"SELECT * FROM MAYTON WHERE NGAY = CAST(GETDATE() AS DATE) and Nha_may = '{nha_may}'")
+    df_may_ton = df_may_ton[df_may_ton['Trang_thai'].isin(trang_thai)]
     fig = px.bar(df_may_ton.sort_values(by='Loai_may',ascending=False),
                  x= 'Loai_may',
                  y='So_luong',
                  color='Trang_thai',
+                 category_orders={'Trang_thai': ['Tồn', 'Mượn', 'Thuê', 'Cho mượn', 'Thanh lý']},
+                #  color_discrete_map= {
+                #      "Tồn" : "light blue",
+                #      "Mượn" : "blue",
+                #      "Thuê" : "red",
+                #      "Cho mượn" : "green",
+                #      "Thanh lý" : "orange"
+                #  },
                  title=f"Tổng số máy may ngày hôm nay - nhà máy {nha_may}",
                  text='So_luong'
                  )
@@ -364,22 +373,23 @@ def bar_chart_may_ton(nha_may,trang_thai):
         range=[0, max_y]
     )
     st.plotly_chart(fig,use_container_width=True)  
-def pie_chart(nha_may,unique_key):
+def pie_chart(nha_may,unique_key,trang_thai):
     df_may_ton = get_data('DW',f"SELECT * FROM MAYTON WHERE NGAY = CAST(GETDATE() AS DATE) and Nha_may = '{nha_may}'")
+    df_may_ton = df_may_ton[df_may_ton['Trang_thai'].isin(trang_thai)]
     fig = px.pie(df_may_ton,names='Trang_thai',values='So_luong',title="Tình trạng máy trong ngày")
     fig.update_traces(
         textposition = 'outside',
         textfont = dict(color = 'rgb(0,0,0)',size = 12),
-        textinfo = 'label+percent'
+        textinfo = 'label+value+percent'
     )
     st.plotly_chart(fig,use_container_width=True,key = unique_key)
 cols = st.columns(2)
 with cols[0]:
     bar_chart_may_ton("NT1",trang_thai)
-    pie_chart(nha_may="NT1",unique_key= 'pie_chart1')
+    pie_chart(nha_may="NT1",unique_key= 'pie_chart1',trang_thai=trang_thai)
 with cols[1]:
     bar_chart_may_ton("NT2",trang_thai)
-    pie_chart(nha_may="NT2",unique_key= 'pie_chart2')
+    pie_chart(nha_may="NT2",unique_key= 'pie_chart2',trang_thai=trang_thai)
 #CHỌN LOẠI MÁY ĐỂ PHÂN TÍCH
 ds_may = pd.Series(df3_2['Loai_may'].unique()).sort_values(ascending=False)
 ds_may_selected = st.multiselect("Chọn loại máy:",options=ds_may,default=['SN','OL','FL (hemming)'])
